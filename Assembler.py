@@ -17,13 +17,21 @@ symtab = {
     "SW":"9"
     }
 
-#Initialize LOCCTR to 1000
-locctr = 1000
+#Initialize LOCCTR to hex 1000
+locctr = "0x1000"
+
+# initialize program name
+programName = "prgram"
+
+# initialize program length
+programLength = "0x0000" 
 
 def passOne():
 
     global symtab
     global locctr
+    global programName
+    global programLength
 
     document = "basic"
     programName = document
@@ -52,32 +60,54 @@ def passOne():
                     section4 = searchR[3] # comments.
 
                     if section2 == "START":
-                        locctr = int(section3)
+                        # assuming section3 is already in hex format
+                        locctr = section3
                         programName = section1
                     
-                    fileWrite.write(str(locctr) + "\t")
+                    # remove leading "0x"
+                    tempLocctr = (locctr)[2:]
+                    # make upper case
+                    tempLocctr = tempLocctr.upper()
+                    fileWrite.write(tempLocctr + "\t")
 
                     # if there is a symbol in the LABEL field (section 1)
                     if section1 != "":
                         # if symbol not in symtab, add it and the locctr value (location)
                         if section1 not in symtab:
-                            symtab[section1] = locctr
+                            # remove leading "0x"
+                            tempLocctr = (locctr)[2:]
+                            # make upper case
+                            tempLocctr = tempLocctr.upper() 
+                            symtab[section1] = tempLocctr
                         # if symbol already there, set error flag
                         else:
-                            # *** THE ERROR FLAG COULD GO IN SECTION 1 OR 4 TO BE CHECKED FOR IN PASS 2 ***
                             print("Error! This symbol has already been used!")
                     else:
                         # something needs to placed to maintain proper spacing
                         section1 = "*"
 
                     if section2 == "WORD":
+                        # turn hex string into int decimal equivalent
+                        locctr = int(locctr, 16)
+                        # add 3 in base 10
                         locctr = locctr + 3
+                        # turn into hex string equivalent
+                        locctr = hex(locctr)
+
                     elif section2 == "RESW":
+                        # turn hex string into int decimal equivalent
+                        locctr = int(locctr, 16)
+                        # words are 3 bytes long
                         locctr = locctr + (int(section3)*3)
+                        # turn the int decimal back into hex string
+                        locctr = hex(locctr)
                     elif section2 == "RESB":
+                        # turn hex string into int decimal equivalent
+                        locctr = int(locctr, 16)
+                        # add value of current section3
                         locctr == locctr + int(section3)
-                    #elif section2 == "BYTE":
-                        # no freaking clue
+                        # turn the int decimal back into hex string
+                        locctr = hex(locctr)
                     else:
                         opcodeFound = False
                         # open the OPCODE TABLE
@@ -91,31 +121,38 @@ def passOne():
                                 # make instruction length an integer
                                 instructLen = int(searchO[1])
                                 # make the opcode into a hex value
-                                # *** BOTH OF THESE STEPS MAY NOT BE NEEDED ***
                                 opCodeInt = int(searchO[2], 16)
                                 opCode = hex(opCodeInt)
                                 # if the opcode from the program is in the opcode table
                                 if section2 == mnemonic:
+                                    # turn hex string into int decimal equivalent
+                                    locctr = int(locctr, 16)
                                     # add the related instruction length to the locctr
                                     locctr = locctr + instructLen
+                                    # turn the int decimal back into hex string
+                                    locctr = hex(locctr)
                                     opcodeFound = True
                                     break
                             if not opcodeFound:
-                                # *** THE ERROR FLAG COULD GO IN SECTION 1 OR 4 TO BE CHECKED FOR IN PASS 2 ***
                                 print("Error! No opcode has been found!")
 
                     fileWrite.write(section1 + "\t" + section2 + "\t" + section3 + "\n")
     
     fileWrite.close()
 
-    # Save LOCCTR as program length  
-    programLength = locctr
+    # Save LOCCTR as program length
+    # remove leading "0x"
+    tempLocctr = (locctr)[2:]
+    # make upper case
+    tempLocctr = tempLocctr.upper()
+    programLength = tempLocctr
 
 #########################################################################################################
 
 def passTwo():
     global locctr
     global symtab
+    global programName
 
     fileLines = []
 
@@ -140,16 +177,14 @@ def passTwo():
                 j = 0
                 while j < len(fileLines):
                     objCode = ""
-                    fileContent = fileLines[j]
-                    #print(j)
-                    #print(fileContent)
+                    fileContent = fileLines[j]                   
                    
                     # fileLines is entire document
                     # fileContent is individual lines
              
                     # for each line of text
-                    #take first section of line (usually has OPCODE)
-                    #compare that section to OPCODE TABLE
+                    # take first section of line (usually has OPCODE)
+                    # compare that section to OPCODE TABLE
 
                     # separate each line into sections (based on column)
                     searchR = re.split('\s+', fileContent)
@@ -160,7 +195,6 @@ def passTwo():
 
                     if section3 == "START":
                         fileWrite.write(section1 + "\t"+ section2 + "\t" + section3 + "\t" + section4 + "\n")
-                    # I think this next little section about WORD, RESW, RESB is not needed in pass 2
                     elif section3 == "WORD" or section3 == "RESW" or section3 == "RESB" or section3 == "BYTE":
                         fileWrite.write(section1 + "\t"+ section2 + "\t" + section3 + "\t" + section4 + "\t")
                     else:
@@ -186,14 +220,12 @@ def passTwo():
                                     # convert to string to remove leading 0b
                                     binCode = str(binCode)
                                     binCode = binCode[2:]
-                                    print(mnemonic)
-                                    print(binCode)
+                                    
                                     # add leading 0s until length of 8
                                     for y in range(7):
                                         if len(binCode) < 8:
                                             binCode = "0" + binCode
-                                    print(binCode)
-                                    print("")
+                                   
 
                                     # for register to register (ADDR, COMPR, TIXR)
                                     if instructLen == 2:
@@ -205,19 +237,19 @@ def passTwo():
                                         ta = first + second                         
                                         # convert binary opcode to hex string, then concatenate       
                                         binCode = hex(int((binCode), 2))
-                                        print(binCode) 
+                                         
                                         objCode = binCode + ta
                                         # remove leading 0x
                                         objCode = objCode[2:]
                                         # conver to all upper case
                                         objCode = objCode.upper()
-                                        print(objCode)
+                                        
 
                                     # for typical nixbpe
                                     elif instructLen == 3:
                                         # remove last two 0s to make room for nixbpe
                                         binCode = binCode[:6] 
-                                        #print(binCode)
+                                        
 
                                         # find the nixbpe info
                                         n = "1"
@@ -241,11 +273,9 @@ def passTwo():
                                         # if pc-relative
                                         if p == "1" and x == "0":
                                             # target address = TA - PC (next section1)
-                                            ta = hex(symtab[section4])
-                                            pc = hex(int(fileLines[j+1][0:4]))
-                                            print("p = 1")
-                                            print(ta)
-                                            print(pc)
+                                            ta = "0x" + (symtab[section4])
+                                            pc = "0x" + (fileLines[j+1][0:4])
+                                           
 
                                             # turns ta and pc into binary strings of hex value                                
                                             ta = bin(int((ta), 16))
@@ -259,13 +289,11 @@ def passTwo():
 
                                             # disp is the correct decimal value
                                             disp = ta - pc
-                                            print(disp)
-
+                                            
                                             # if disp is negative
                                             if disp < 0:
                                                 # make into binary string
-                                                disp = bin(disp) 
-                                                print(int(disp, 2))
+                                                disp = bin(disp)
                                                 # remove leading "-0b"
                                                 disp = disp[3:]
                                                 # create a flipped disp
@@ -288,7 +316,7 @@ def passTwo():
 
                                             # turns disp into hex string
                                             disp = hex(disp)
-                                            print(disp)
+                                            
 
                                             # remove leading 0x
                                             disp = disp[2:]
@@ -297,17 +325,17 @@ def passTwo():
                                             for y in range(2):
                                                 if len(disp) < 3:
                                                     disp = "0" + disp
-                                            print(disp)
+                                            
 
                                             # binCode + nixbpe + disp
                                             # objCode is string of 12 binary bits
                                             objCode = binCode + n + i + x + b + p + e
-                                            print(objCode)
+                                            
                                             # convert to decimal integer
                                             objCode = int((objCode), 2)
-                                            print(objCode)
+                                            
                                             objCode = hex(objCode)
-                                            print(objCode)
+                                            
 
                                             # remove leading 0x
                                             objCode = objCode[2:]
@@ -316,11 +344,11 @@ def passTwo():
                                             for y in range(2):
                                                 if len(objCode) < 3:
                                                     objCode = "0" + objCode
-                                            print(objCode)
+                                           
 
                                             objCode = objCode + disp
                                             objCode = objCode.upper()
-                                            print(objCode)
+                                           
 
                                         # if pc-relative indexed addressing
                                         if p == "1" and x == "1":
@@ -330,11 +358,9 @@ def passTwo():
                                             # ta and pc need to be hex ints
 
                                             # turns ta and pc into hex strings
-                                            ta = hex(symtab[section4[0]])
-                                            pc = hex(int(fileLines[j+1][0:4]))
-                                            #print("p = 1 and x = 1")
-                                            #print(ta)
-                                            #print(pc)
+                                            ta = "0x" + (symtab[section4[0]])
+                                            pc = "0x" + (fileLines[j+1][0:4])
+                                            
                                             # turns ta and pc into binary strings of hex value                                
                                             ta = bin(int((ta), 16))
                                             pc = bin(int((pc), 16))
@@ -347,10 +373,10 @@ def passTwo():
 
                                             # disp is the correct decimal value
                                             disp = ta - pc
-                                            #print(disp)
+                                           
                                             # turns disp into hex string
                                             disp = hex(disp)
-                                            print(disp)
+                                            
 
                                             # remove leading 0x
                                             disp = disp[2:]
@@ -359,17 +385,17 @@ def passTwo():
                                             for y in range(2):
                                                 if len(disp) < 3:
                                                     disp = "0" + disp
-                                            print(disp)
+                                           
 
                                             # binCode + nixbpe + disp
                                             # objCode is string of 12 binary bits
                                             objCode = binCode + n + i + x + b + p + e
-                                            print(objCode)
+                                            
                                             # convert to decimal integer
                                             objCode = int((objCode), 2)
-                                            print(objCode)
+                                            
                                             objCode = hex(objCode)
-                                            print(objCode)
+                                            
 
                                             # remove leading 0x
                                             objCode = objCode[2:]
@@ -378,11 +404,11 @@ def passTwo():
                                             for y in range(2):
                                                 if len(objCode) < 3:
                                                     objCode = "0" + objCode
-                                            print(objCode)
+                                            
 
                                             objCode = objCode + disp
                                             objCode = objCode.upper()
-                                            print(objCode)
+                                            
 
                                         # if base relative
                                         if b == "1":
@@ -390,13 +416,13 @@ def passTwo():
                                             # split section4 at ,
                                             #section4 = section4.split(",")
                                             #ta = symtab[section4[0]]
-                                            print("skipping for now")
+                                            break
 
                                         # if immediate addressing
                                         if b == "0" and p == "0":    
                                             # take the value after the # and turn it into hex value
                                             disp = int(section4[1:], 16)
-                                            print(disp)
+                                            
 
                                             disp = hex(disp)
                                             
@@ -407,18 +433,17 @@ def passTwo():
                                             for y in range(2):
                                                 if len(disp) < 3:
                                                     disp = "0" + disp
-                                            print(disp)
+                                            
 
                                             # binCode + nixbpe + disp
                                             # objCode is string of 12 binary bits
                                             objCode = binCode + n + i + x + b + p + e
-                                            print(objCode)
+                                            
                                             # convert to decimal integer
                                             objCode = int((objCode), 2)
-                                            print(objCode)
+                                            
                                             objCode = hex(objCode)
-                                            print(objCode)
-
+                                           
                                             # remove leading 0x
                                             objCode = objCode[2:]
 
@@ -426,14 +451,11 @@ def passTwo():
                                             for y in range(2):
                                                 if len(objCode) < 3:
                                                     objCode = "0" + objCode
-                                            print(objCode)
+                                            
 
                                             objCode = objCode + disp
                                             objCode = objCode.upper()
-                                            print(objCode)
-
-                                    # concatenate and turn into hex, save as objectCode
-                                    print("we're getting there!")
+                                            
                                     
                                     opcodeFound = True
                                     break
@@ -443,44 +465,86 @@ def passTwo():
                     fileWrite.write(objCode + "\n")
                     j += 1
 
-        '''
-        for LDA ALPHA, X :
-        the disp still = ta - pc
-        and the p = 1 in the nixbpe
-        nixbpe = 111010
-        and the ta = where ALPHA is stored (in this case)
+################################################################################################
+# This section makes the Text Record
 
-        if opCode = Start
-            write line
-            read next line
-        write header to object program
-        open new text record
-        while opCode != end
-            if not a comment
-                search OPTab for opCode
-                if found
-                    if there is a symbol in operand field
-                        search symtab for operand
-                        if found
-                            store symbol as operand address
-                        else
-                            store 0 as operand address
-                            error "symbol not found"
-                    else	
-                        store 0 as operand address
-                    assemble object code
-                else if	opCode = byte or word
-                    convert constant to object
-                if object code doesn't fit into text record
-                    write to object program
-                    create new text record
-                add object code to text record
-            write listing line
-            read next line
-        write last text record to object program
-        write end record to object program
-        write last listing line'''
+fileLines2 = []
+objCodeList = []
 
+objectProgram = os.path.join(savePath, "objectProgram.txt")
+# This will automatically close the file after reading it
+with open (objectProgram, "r") as myfile:
+    
+    outputDocument = os.path.join(savePath, "textRecord.txt")
+
+    with open(outputDocument, "w", encoding='utf-8') as fileWrite:
+        
+        if myfile.mode == "r":
+
+            # for each line of text
+            for fileLine in myfile:
+                # add to list (this allows access to the next line's locctr)
+                fileLines2.append(fileLine)
+
+            firstTime = True
+            j = 0
+            while j < len(fileLines2):
+                fileContent = fileLines2[j]
+                        
+                # separate each line into sections (based on column)
+                searchR = re.split('\s+', fileContent)
+                section1 = searchR[0] # LOCCTR from pass 1
+                section2 = searchR[1] # mostly empty, lables
+                section3 = searchR[2] # opcodes
+                section4 = searchR[3] # actual data like #3, ALPHA,X, RESW value 100
+                section5 = searchR[4] # object codes
+
+                # program name should be 6 characters long
+                if len(programName) > 6:
+                    programName = (programName.upper())[:6]
+                elif len(programName) < 6:
+                    for y in range(6):
+                        if len(programName) < 6:
+                            programName = programName + " "
+
+                # write header and beginning of text section
+                if j == 0:
+                    begin = section1
+                    programLength = programLength[2:]
+                    fileWrite.write("H" + (programName.upper()) + "00" + begin + "00" + programLength + "\n")
+                    fileWrite.write("T" + "00" + begin)
+
+                if section5:   
+                    objCodeList.insert(j, section5)
+
+                # find last section1 where same section4 not empty
+                # take that section1 and subtract value of begin
+                # this is length of text record
+                if not section5 and firstTime:
+                    end = fileLines2[j-1][0:4]
+                    end = "0x" + end
+                    begin = "0x" + begin
+                    end = int(end, 16)
+                    begin = int(begin, 16)
+                    total = end - begin
+                    total = hex(total)
+                    total = total[2:]
+                    fileWrite.write(total)
+                    firstTime = False
+
+                j += 1
+
+            # check the object codes for length of 6
+            for k in range(len(objCodeList)):
+                tempObjCode = objCodeList[k]
+                if len(tempObjCode) < 6:
+                    tempObjCode = "0" + tempObjCode
+
+                # write rest of text section
+                fileWrite.write(tempObjCode)
+            
+            # write end record
+            fileWrite.write("\n" + "E" + "00" + str(begin))
 
 
 def main():
